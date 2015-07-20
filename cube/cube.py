@@ -25,8 +25,8 @@ from sunpy.visualization.imageanimator import ImageAnimator
 from sunpy.lightcurve import LightCurve
 from sunpy.spectra.spectrum import Spectrum
 from sunpy.spectra.spectrogram import Spectrogram
-from sunpy.spectra.spectral_cube import SpectralCube
-from sunpy.cube import cube_utils as cu
+from cube.spectra.spectral_cube import SpectralCube
+from cube.cube import cube_utils as cu
 from sunpy.wcs import wcs_util as wu
 
 __all__ = ['Cube']
@@ -442,7 +442,7 @@ class Cube(astropy.nddata.NDDataArray):
             raise cu.CubeError(2, 'Spectral axis needed to create a spectrum')
         axis = 0 if self.axes_wcs.wcs.ctype[-1] == 'WAVE' else 1
         coordaxes = [1, 2] if axis == 0 else [0, 2]  # Non-spectral axes
-        newwcs = wu.reindex_wcs(self.axes_wcs, coordaxes)
+        newwcs = wu.reindex_wcs(self.axes_wcs, np.arary(coordaxes))
         time_or_x_size = self.data.shape[coordaxes[0]]
         y_size = self.data.shape[coordaxes[1]]
         spectra = np.empty((time_or_x_size, y_size), dtype=Spectrum)
