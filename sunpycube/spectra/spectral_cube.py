@@ -11,7 +11,7 @@ different wavelength axes.
 import gwcs
 import numpy as np
 from sunpy.map import GenericMap, MapCube
-from cube.cube import cube_utils as cu
+from sunpycube.cube import cube_utils as cu
 
 __all__ = ['SpectralCube']
 

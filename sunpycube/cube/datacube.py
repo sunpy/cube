@@ -25,8 +25,8 @@ from sunpy.visualization.imageanimator import ImageAnimator
 from sunpy.lightcurve import LightCurve
 from sunpy.spectra.spectrum import Spectrum
 from sunpy.spectra.spectrogram import Spectrogram
-from cube.spectra.spectral_cube import SpectralCube
-from cube.cube import cube_utils as cu
+from sunpycube.spectra.spectral_cube import SpectralCube
+from sunpycube.cube import cube_utils as cu
 from sunpy.wcs import wcs_util as wu
 
 __all__ = ['Cube']

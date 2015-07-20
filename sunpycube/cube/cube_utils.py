@@ -9,7 +9,6 @@ aid readability.
 import numpy as np
 from sunpy.wcs import wcs_util
 from astropy import units as u
-import cube.cube.cube as c
 
 
 def orient(array, wcs):
@@ -244,6 +243,7 @@ def reduce_dim(cube, axis, keys):
     uncertainty = cube.uncertainty
     mask = cube.mask
 
+    from . import datacube as c
     newcube = c.Cube(data=newdata, wcs=newwcs, meta=meta, unit=unit,
                      uncertainty=uncertainty, mask=mask)
     return newcube

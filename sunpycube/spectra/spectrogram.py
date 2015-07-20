@@ -34,7 +34,7 @@ from sunpy.time import parse_time, get_day
 from sunpy.util import to_signed, common_base, merge
 from sunpy.util.cond_dispatch import ConditionalDispatch
 from sunpy.util.create import Parent
-from sunpy.spectra.spectrum import Spectrum
+from sunpycube.spectra.spectrum import Spectrum
 
 __all__ = ['Spectrogram', 'LinearTimeSpectrogram']
 
