@@ -16,6 +16,7 @@ import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 import astropy.nddata
+import copy
 from astropy import units as u
 from astropy.units import sday  # sidereal day
 
@@ -25,7 +26,8 @@ try:
     from sunpy.util.metadata import MetaDict
 except ImportError:
     from sunpy.map import MapMeta as MetaDict
-from sunpy.visualization.imageanimator import ImageAnimator
+import sunpy.visualization.wcsaxes_compat as wcsaxes_compat
+from sunpy.visualization.imageanimator import ImageAnimatorWCS
 from sunpy.lightcurve import LightCurve
 from sunpycube.spectra.spectrum import Spectrum
 from sunpycube.spectra.spectrogram import Spectrogram
@@ -75,28 +77,27 @@ class Cube(astropy.nddata.NDDataArray):
         # Also it's called axes_wcs because wcs belongs to astropy.nddata and
         # that messes up slicing.
 
-    def plot_wavelength_slice(self, offset, axes=None,
-                              style='imshow', **kwargs):
+    def plot_wavelength_slice(self, offset, axes=None, style='imshow', **kwargs):
         """
         Plots an x-y graph at a certain specified wavelength onto the current
         axes. Keyword arguments are passed on to matplotlib.
 
         Parameters
         ----------
-        offset: int or float
+        offset: `int` or `float`
             The offset from the primary wavelength to plot. If it's an int it
             will plot the nth wavelength from the primary; if it's a float then
             it will plot the closest wavelength. If the offset is out of range,
             it will plot the primary wavelength (offset 0)
 
-        axes: matplotlib.axes or None:
+        axes: `astropy.visualization.wcsaxes.core.WCSAxes` or `None`:
             The axes to plot onto. If None the current axes will be used.
 
         style: 'imshow' or 'pcolormesh'
             The style of plot to be used. Default is 'imshow'
         """
         if axes is None:
-            axes = plt.gca()
+            axes = wcsaxes_compat.gca_wcs(self.axes_wcs, slices=("x", "y", offset))
 
         data = self._choose_wavelength_slice(offset)
         if data is None:
@@ -109,28 +110,27 @@ class Cube(astropy.nddata.NDDataArray):
 
         return plot
 
-    def plot_x_slice(self, offset, axes=None,
-                     style='imshow', **kwargs):
+    def plot_x_slice(self, offset, axes=None, style='imshow', **kwargs):
         """
         Plots an x-y graph at a certain specified wavelength onto the current
         axes. Keyword arguments are passed on to matplotlib.
 
         Parameters
         ----------
-        offset: int or float
+        offset: `int` or `float`
             The offset from the initial x value to plot. If it's an int it
             will plot slice n from the start; if it's a float then
             it will plot the closest x-distance. If the offset is out of range,
             it will plot the primary wavelength (offset 0)
 
-        axes: matplotlib.axes or None:
+        axes: `astropy.visualization.wcsaxes.core.WCSAxes` or None:
             The axes to plot onto. If None the current axes will be used.
 
         style: 'imshow' or 'pcolormesh'
             The style of plot to be used. Default is 'imshow'
         """
         if axes is None:
-            axes = plt.gca()
+            axes = wcsaxes_compat.gca_wcs(self.axes_wcs, slices=("x", offset, "y"))
 
         data = self._choose_x_slice(offset)
         if data is None:
@@ -147,10 +147,33 @@ class Cube(astropy.nddata.NDDataArray):
         """
         Plots an interactive visualization of this cube with a slider
         controlling the wavelength axis.
-        Parameters other than data are passed to ImageAnimator, which in turn
+        Parameters other than data and wcs are passed to ImageAnimatorWCS, which in turn
         passes them to imshow.
+
+        Parameters
+        ----------
+        image_axes: `list`
+            The two axes that make the image.
+            Like [-1,-2] this implies cube instance -1 dimension
+            will be x-axis and -2 dimension will be y-axis.
+
+        unit_x_axis: `astropy.units.Unit`
+            The unit of x axis.
+
+        unit_y_axis: `astropy.units.Unit`
+            The unit of y axis.
+
+        axis_ranges: list of physical coordinates for array or None
+            If None array indices will be used for all axes.
+            If a list it should contain one element for each axis of the numpy array.
+            For the image axes a [min, max] pair should be specified which will be
+            passed to :func:`matplotlib.pyplot.imshow` as extent.
+            For the slider axes a [min, max] pair can be specified or an array the
+            same length as the axis which will provide all values for that slider.
+            If None is specified for an axis then the array indices will be used
+            for that axis.
         """
-        i = ImageAnimator(data=self.data, *args, **kwargs)
+        i = ImageAnimatorWCS(self.data, wcs=self.axes_wcs, *args, **kwargs)
         return i
 
     def _choose_wavelength_slice(self, offset):
@@ -160,7 +183,7 @@ class Cube(astropy.nddata.NDDataArray):
 
         Parameters
         ----------
-        offset: int or astropy quantity
+        offset: `int` or astropy quantity
             Offset from the cube's primary wavelength. If the value is an int,
             then it returns that slice. Otherwise, it will return the nearest
             wavelength to the one specified.
@@ -192,7 +215,7 @@ class Cube(astropy.nddata.NDDataArray):
 
         Parameters
         ----------
-        offset: int or astropy quantity
+        offset: `int` or astropy quantity
             Offset from the cube's initial x. If the value is an int,
             then it returns that slice. Otherwise, it will return the nearest
             wavelength to the one specified.
@@ -212,6 +235,13 @@ class Cube(astropy.nddata.NDDataArray):
                 arr = self.data.take(wloffset, axis=axis)
 
         return arr
+
+    @classmethod
+    def _new_instance(cls, data, wcs, errors=None, **kwargs):
+        """
+        Instantiate a new instance of this class using given data.
+        """
+        return cls(data, wcs, errors=errors, **kwargs)
 
     def slice_to_map(self, chunk, snd_dim=None, *args, **kwargs):
         """
@@ -339,7 +369,8 @@ class Cube(astropy.nddata.NDDataArray):
                     sumaxis = 1 if i == 2 else i
                 data = data.sum(axis=sumaxis)
 
-        freq_axis, cunit = self.freq_axis()
+        wavelength_axis = self.wavelength_axis()
+        freq_axis, cunit = wavelength_axis.value, wavelength_axis.unit
         err = self.uncertainty[item] if self.uncertainty is not None else None
         kwargs.update({'uncertainty': err})
         return Spectrum(np.array(data), np.array(freq_axis), cunit, **kwargs)
@@ -368,8 +399,8 @@ class Cube(astropy.nddata.NDDataArray):
                 raise cu.CubeError(4, 'An x-coordinate is needed for 4D cubes')
             data = self.data[:, :, cu.pixelize(y_coord, self.axes_wcs, 2),
                              cu.pixelize(x_coord, self.axes_wcs, 3)]
-        time_axis = self.time_axis()[0]
-        freq_axis = self.freq_axis()[0]
+        time_axis = self.time_axis().value
+        freq_axis = self.wavelength_axis().value
 
         if 'DATE_OBS'in self.meta:
             tformat = '%Y-%m-%dT%H:%M:%S.%f'
@@ -466,9 +497,9 @@ class Cube(astropy.nddata.NDDataArray):
         start = crval - crpix * delta
         stop = start + len(self.data) * delta
         cunit = u.Unit(self.axes_wcs.wcs.cunit[-1])
-        return np.linspace(start, stop, num=self.data.shape[0]), cunit
+        return np.linspace(start, stop, num=self.data.shape[0]) * cunit
 
-    def freq_axis(self):
+    def wavelength_axis(self):
         """
         Returns a numpy array containing the frequency values for the cube's
         spectral dimension, as well as the axis's unit.
@@ -483,7 +514,7 @@ class Cube(astropy.nddata.NDDataArray):
         start = crval - crpix * delta
         stop = start + self.data.shape[axis] * delta
         cunit = u.Unit(self.axes_wcs.wcs.cunit[-1 - axis])
-        return np.linspace(start, stop, num=self.data.shape[axis]), cunit
+        return np.linspace(start, stop, num=self.data.shape[axis]) * cunit
 
     def _array_is_aligned(self):
         """
