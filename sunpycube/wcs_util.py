@@ -10,6 +10,7 @@ import numpy as np
 from astropy import wcs
 from astropy.wcs._wcs import InconsistentAxisTypesError
 
+
 class WCS(wcs.WCS):
 
     def __init__(self, header=None, naxis=None, **kwargs):
@@ -37,7 +38,7 @@ class WCS(wcs.WCS):
         newheader = deepcopy(header)
         new_wcs_axes_params = {'CRPIX': 0, 'CDELT': 1, 'CRVAL': 0,
                                'CNAME': 'redundant axis', 'CTYPE': 'HPLN-TAN',
-                               'CROTA': 0, 'CUNIT': 'deg'}
+                               'CROTA': 0, 'CUNIT': 'deg', 'NAXIS': 0}
         axis = max(newheader.get('NAXIS', 0), naxis) + 1
         axis = str(axis)
         for param in new_wcs_axes_params:
