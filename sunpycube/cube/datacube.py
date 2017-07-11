@@ -560,6 +560,7 @@ class CubeSequence(object):
         self.data = data_list
         self.meta = meta
         self.common_axis = common_axis
+        self.shape = tuple([len(data_list)] + list(data_list[0].shape))
 
     def __getitem__(self, item):
         if item is None or (isinstance(item, tuple) and None in item):
@@ -575,6 +576,7 @@ class CubeSequence(object):
         Method to slice the cubesequence instance as a single cube
         """
         return cu.index_sequence_as_cube(self, item)
+
     def plot_x_slice(self, offset, **kwargs):
         """
         Plots an x-y graph at a certain specified wavelength onto the current
