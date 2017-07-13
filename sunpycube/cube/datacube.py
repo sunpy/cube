@@ -11,6 +11,7 @@ wavelength
 
 # standard libraries
 import datetime
+import warnings
 
 # external libraries
 import numpy as np
@@ -554,20 +555,15 @@ class CubeSequence(object):
         one single Cube.
     """
 
-    def __init__(self, data_list, meta=None, common_axis=None):
-        if not all(isinstance(data, Cube) for data in data_list):
-            raise ValueError("data list should be of cube object")
+    def __init__(self, data_list, meta=None, common_axis=0):
         self.data = data_list
         self.meta = meta
         self.common_axis = common_axis
-        self.shape = tuple([len(data_list)] + list(data_list[0].shape))
-
-    @classmethod
-    def _new_instance(cls, data_list, meta=None):
-        """
-        Instantiate a new instance of this class using given data.
-        """
-        return cls(data_list, meta=meta)
+        try:
+            self.shape = tuple([len(data_list)] + list(data_list[0].shape))
+        except AttributeError as err:
+            warnings.warn("AttributeError " + str(err))
+            self.shape = tuple([len(data_list)])
 
     def __getitem__(self, item):
         if item is None or (isinstance(item, tuple) and None in item):
@@ -577,6 +573,13 @@ class CubeSequence(object):
     def animate(self, *args, **kwargs):
         i = ani.ImageAnimatorCubeSequence(self, *args, **kwargs)
         return i
+
+    @classmethod
+    def _new_instance(cls, data_list, meta=None, common_axis=None):
+        """
+        Instantiate a new instance of this class using given data.
+        """
+        return cls(data_list, meta=meta, common_axis=common_axis)
 
     def index_as_cube(self, item):
         """
