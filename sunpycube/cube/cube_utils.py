@@ -665,11 +665,21 @@ def _convert_cube_like_index_to_sequence_indices(cube_like_index, cumul_cube_len
 
 
 def _convert_cube_like_slice_to_sequence_slices(cube_like_slice, cumul_cube_lengths):
+
+    start = cube_like_slice.start if cube_like_slice.start is not None else 0
+    stop = cube_like_slice.stop if cube_like_slice.stop is not None else cumul_cube_lengths[-1]
+    if stop > cumul_cube_lengths[-1]:
+        stop = cumul_cube_lengths[-1]
+    if start < 0:
+        start = 0
+    step = cube_like_slice.step if cube_like_slice.step is not None else 1
+    indices = slice(start, stop, step)
+
     sequence_start_index, cube_start_index = _convert_cube_like_index_to_sequence_indices(
-        cube_like_slice.start, cumul_cube_lengths)
+        indices.start, cumul_cube_lengths)
     sequence_stop_index, cube_stop_index = _convert_cube_like_index_to_sequence_indices(
-        cube_like_slice.stop, cumul_cube_lengths)
-    if not cube_like_slice.stop < cumul_cube_lengths[-1]:
+        indices.stop, cumul_cube_lengths)
+    if not indices.stop < cumul_cube_lengths[-1]:
         # as _convert_cube_like_index_to_sequence_indices function returns last
         # cube index so we need to increment it by one and set the cube_stop_index
         # as 0 as the function returns the last index of the cube.
@@ -683,7 +693,7 @@ def _convert_cube_like_slice_to_sequence_slices(cube_like_slice, cumul_cube_leng
         # Like if sequence_slice is slice(0, 3) meaning - 0, 1, 2 cubes this means we will
         # store only 0th index slice and 2nd index slice in this list.
         cube_slice = [slice(cube_start_index, cumul_cube_lengths[
-                            sequence_start_index], cube_like_slice.step)]
+                            sequence_start_index], indices.step)]
 
         # for cube over which slices occur appending them
         # for i in range(sequence_start_index+1, sequence_stop_index):
@@ -691,14 +701,14 @@ def _convert_cube_like_slice_to_sequence_slices(cube_like_slice, cumul_cube_leng
         # if the stop index is 0 then slice(0, 0) is not taken. slice(0,3)
         # represent 0,1,2 not 0,1,2,3.
         if int(cube_stop_index) is not 0:
-            cube_slice.append(slice(0, cube_stop_index, cube_like_slice.step))
+            cube_slice.append(slice(0, cube_stop_index, indices.step))
             sequence_slice = slice(sequence_start_index,
-                                   sequence_stop_index+1, cube_like_slice.step)
+                                   sequence_stop_index+1, indices.step)
         else:
-            sequence_slice = slice(sequence_start_index, sequence_stop_index, cube_like_slice.step)
+            sequence_slice = slice(sequence_start_index, sequence_stop_index, indices.step)
     else:
-        cube_slice = slice(cube_start_index, cube_stop_index, cube_like_slice.step)
-        sequence_slice = slice(sequence_start_index, sequence_stop_index+1, cube_like_slice.step)
+        cube_slice = slice(cube_start_index, cube_stop_index, indices.step)
+        sequence_slice = slice(sequence_start_index, sequence_stop_index+1, indices.step)
     return sequence_slice, cube_slice
 
 
