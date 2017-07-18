@@ -64,6 +64,9 @@ class Cube(astropy.nddata.NDDataArray):
 
     def __init__(self, data, wcs, errors=None, **kwargs):
         mask = kwargs.pop('mask', np.zeros(data.shape, dtype=bool))
+        if kwargs.get('meta') is not None:
+            if not isinstance(kwargs.get('meta'), (dict, None)):
+                raise ValueError("meta should be of a dictionary.")
         if errors is not None:
             data, wcs, err_array, mask = cu.orient(data, wcs, errors.array,
                                                    mask)
@@ -626,7 +629,7 @@ class CubeSequence(object):
         return plot
 
     def plot_wavelength_slice(self, offset, **kwargs):
-        """ 
+        """
         Plots an x-y graph at a certain specified wavelength onto the current
         axes. Keyword arguments are passed on to matplotlib.
 
