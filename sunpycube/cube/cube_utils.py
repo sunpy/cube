@@ -665,16 +665,27 @@ def _convert_cube_like_index_to_sequence_indices(cube_like_index, cumul_cube_len
 
 
 def _convert_cube_like_slice_to_sequence_slices(cube_like_slice, cumul_cube_lengths):
-
-    start = cube_like_slice.start if cube_like_slice.start is not None else 0
-    stop = cube_like_slice.stop if cube_like_slice.stop is not None else cumul_cube_lengths[-1]
+    negative_start = negative_stop = None
+    if cube_like_slice.start is not None:
+        if cube_like_slice.start < 0:
+            negative_start = cumul_cube_lengths[-1] + cube_like_slice.start
+    if cube_like_slice.stop is not None:
+        if cube_like_slice.stop < 0:
+            negative_stop = cumul_cube_lengths[-1] + cube_like_slice.stop
+    if negative_start:
+        start = negative_start
+    else:
+        start = cube_like_slice.start if cube_like_slice.start is not None else 0
+    if negative_stop:
+        stop = negative_stop
+    else:
+        stop = cube_like_slice.stop if cube_like_slice.stop is not None else cumul_cube_lengths[-1]
     if stop > cumul_cube_lengths[-1]:
         stop = cumul_cube_lengths[-1]
     if start < 0:
         start = 0
     step = cube_like_slice.step if cube_like_slice.step is not None else 1
     indices = slice(start, stop, step)
-
     sequence_start_index, cube_start_index = _convert_cube_like_index_to_sequence_indices(
         indices.start, cumul_cube_lengths)
     sequence_stop_index, cube_stop_index = _convert_cube_like_index_to_sequence_indices(
@@ -692,8 +703,10 @@ def _convert_cube_like_slice_to_sequence_slices(cube_like_slice, cumul_cube_leng
         # only storing those cube_slice that needs to be changed.
         # Like if sequence_slice is slice(0, 3) meaning - 0, 1, 2 cubes this means we will
         # store only 0th index slice and 2nd index slice in this list.
-        cube_slice = [slice(cube_start_index, cumul_cube_lengths[
-                            sequence_start_index], indices.step)]
+        cube_slice = [slice(cube_start_index, cumul_cube_lengths[sequence_start_index]
+                            if cumul_cube_lengths[sequence_start_index] < cumul_cube_lengths[0]
+                            else cumul_cube_lengths[0],
+                            indices.step)]
 
         # for cube over which slices occur appending them
         # for i in range(sequence_start_index+1, sequence_stop_index):
