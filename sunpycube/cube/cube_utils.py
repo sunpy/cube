@@ -517,11 +517,11 @@ def get_cube_from_sequence(cubesequence, item):
     """
     if isinstance(item, int):
         result = cubesequence.data[item]
-    if isinstance(item, slice):
+    elif isinstance(item, slice):
         data = cubesequence.data[item]
         result = cubesequence._new_instance(
             data, meta=cubesequence.meta, common_axis=cubesequence.common_axis)
-    if isinstance(item, tuple):
+    elif isinstance(item, tuple):
         # if the 0th index is int.
         if isinstance(item[0], int):
             # to satisfy something like cubesequence[0,0] this should have data type
@@ -534,7 +534,7 @@ def get_cube_from_sequence(cubesequence, item):
         # used for the index_sequence_as_cube function. Slicing across cubes.
         # item represents (slice(start_cube_index, end_cube_index, None),
         # [slice_of_start_cube, slice_of_end_cube]) if end cube is not sliced then length is 1.
-        if isinstance(item[0], slice):
+        elif isinstance(item[0], slice):
             data = cubesequence.data[item[0]]
             # applying the slice in the start of cube.
             data[0] = data[0][item[1][0]]
