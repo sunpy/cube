@@ -669,9 +669,13 @@ def _convert_cube_like_slice_to_sequence_slices(cube_like_slice, cumul_cube_leng
     if cube_like_slice.start is not None:
         if cube_like_slice.start < 0:
             negative_start = cumul_cube_lengths[-1] + cube_like_slice.start
+            if negative_start < 0:
+                negative_start = 0
     if cube_like_slice.stop is not None:
         if cube_like_slice.stop < 0:
             negative_stop = cumul_cube_lengths[-1] + cube_like_slice.stop
+            if negative_stop < 0:
+                negative_stop = 0
     if negative_start:
         start = negative_start
     else:
