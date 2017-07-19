@@ -549,6 +549,9 @@ def get_cube_from_sequence(cubesequence, item):
                     data[i] = cube[item[2::]]
             result = cubesequence._new_instance(
                 data, meta=cubesequence.meta, common_axis=cubesequence.common_axis)
+        elif:
+            result = None
+            raise ValueError("type of item {0}".format(type(item)))
     return result
 
 
