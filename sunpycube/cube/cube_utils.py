@@ -666,26 +666,32 @@ def _convert_cube_like_index_to_sequence_indices(cube_like_index, cumul_cube_len
 
 def _convert_cube_like_slice_to_sequence_slices(cube_like_slice, cumul_cube_lengths):
     negative_start = negative_stop = None
+    # if cube_like_slice.start is not None and negative then converting to a positive value.
     if cube_like_slice.start is not None:
         if cube_like_slice.start < 0:
             negative_start = cumul_cube_lengths[-1] + cube_like_slice.start
-            if negative_start < 0:
-                negative_start = 0
+    # if cube_like_slice.stop is not None and negative then converting to a positive value.
     if cube_like_slice.stop is not None:
         if cube_like_slice.stop < 0:
             negative_stop = cumul_cube_lengths[-1] + cube_like_slice.stop
-            if negative_stop < 0:
-                negative_stop = 0
+    # mark negative_start as the start, if not None.
     if negative_start:
         start = negative_start
     else:
+        # else it will be positive and we will have to check if it is not None then set as 0.
         start = cube_like_slice.start if cube_like_slice.start is not None else 0
+    # mark negative_stop as the stop, if not None.
     if negative_stop:
         stop = negative_stop
     else:
+        # else it will be positive and we will have to check if it is not None then set as 0.
         stop = cube_like_slice.stop if cube_like_slice.stop is not None else cumul_cube_lengths[-1]
+    # if we find that the stop is greater than the max indices of the
+    # cubesequence(considering as a complete cube)
     if stop > cumul_cube_lengths[-1]:
         stop = cumul_cube_lengths[-1]
+    if stop < 0:
+        stop = 0
     if start < 0:
         start = 0
     step = cube_like_slice.step if cube_like_slice.step is not None else 1
