@@ -11,6 +11,7 @@ import numpy as np
 from sunpycube import wcs_util
 from astropy import units as u
 from copy import deepcopy
+import numpy as np
 
 
 def orient(array, wcs, *extra_arrs):
@@ -523,7 +524,7 @@ def get_cube_from_sequence(cubesequence, item):
             data, meta=cubesequence.meta, common_axis=cubesequence.common_axis)
     elif isinstance(item, tuple):
         # if the 0th index is int.
-        if isinstance(item[0], int):
+        if isinstance(item[0], np.int64):
             # to satisfy something like cubesequence[0,0] this should have data type
             # as cubesequence[0][0]
             if len(item[1::]) is 1:
