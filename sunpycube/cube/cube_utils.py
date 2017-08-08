@@ -585,7 +585,7 @@ def index_sequence_as_cube(cubesequence, item):
 
     """
     # Determine starting slice of each cube along common axis.
-    cumul_cube_lengths = np.cumsum(np.array([c.shape[cubesequence.common_axis]
+    cumul_cube_lengths = np.cumsum(np.array([c.data.shape[cubesequence.common_axis]
                                              for c in cubesequence.data]))
     # Case 1: Item is int and common axis is 0. Not yet supported.
     if isinstance(item, int):
@@ -617,7 +617,7 @@ def index_sequence_as_cube(cubesequence, item):
             raise ValueError("Input item not long enough to include common axis."
                              "Must have length of of between "
                              "{0} and {1} inclusive.".format(
-                                 cubesequence.common_axis, len(cubesequence[0].shape)))
+                                 cubesequence.common_axis, len(cubesequence[0].data.shape)))
         sequence_index, cube_index = _convert_cube_like_index_to_sequence_indices(
             item_list[cubesequence.common_axis], cumul_cube_lengths)
     # Case 4: Item is tuple and common axis index is slice.
@@ -630,7 +630,7 @@ def index_sequence_as_cube(cubesequence, item):
             raise ValueError("Input item not long enough to include common axis."
                              "Must have length of of between "
                              "{0} and {1} inclusive.".format(
-                                 cubesequence.common_axis, len(cubesequence[0].shape)))
+                                 cubesequence.common_axis, len(cubesequence[0].data.shape)))
         sequence_index, cube_index = _convert_cube_like_slice_to_sequence_slices(
             item_list[cubesequence.common_axis], cumul_cube_lengths)
     else:
@@ -665,16 +665,25 @@ def _convert_cube_like_index_to_sequence_indices(cube_like_index, cumul_cube_len
 
 
 def _convert_cube_like_slice_to_sequence_slices(cube_like_slice, cumul_cube_lengths):
-    sequence_start_index, cube_start_index = _convert_cube_like_index_to_sequence_indices(
-        cube_like_slice.start, cumul_cube_lengths)
-    sequence_stop_index, cube_stop_index = _convert_cube_like_index_to_sequence_indices(
-        cube_like_slice.stop, cumul_cube_lengths)
-    if not cube_like_slice.stop < cumul_cube_lengths[-1]:
-        # as _convert_cube_like_index_to_sequence_indices function returns last
-        # cube index so we need to increment it by one and set the cube_stop_index
-        # as 0 as the function returns the last index of the cube.
-        cube_stop_index = 0
-        sequence_stop_index += 1
+    if cube_like_slice.start is not None:
+        sequence_start_index, cube_start_index = _convert_cube_like_index_to_sequence_indices(
+            cube_like_slice.start, cumul_cube_lengths)
+    else:
+        sequence_start_index, cube_start_index = _convert_cube_like_index_to_sequence_indices(
+            0, cumul_cube_lengths)
+    if cube_like_slice.stop is not None:
+        sequence_stop_index, cube_stop_index = _convert_cube_like_index_to_sequence_indices(
+            cube_like_slice.stop, cumul_cube_lengths)
+    else:
+        sequence_stop_index, cube_stop_index = _convert_cube_like_index_to_sequence_indices(
+            cumul_cube_lengths[-1], cumul_cube_lengths)
+    if cube_like_slice.stop is not None:
+        if not cube_like_slice.stop < cumul_cube_lengths[-1]:
+            # as _convert_cube_like_index_to_sequence_indices function returns last
+            # cube index so we need to increment it by one and set the cube_stop_index
+            # as 0 as the function returns the last index of the cube.
+            cube_stop_index = 0
+            sequence_stop_index += 1
     # if the start and end sequence index are not equal implies slicing across cubes.
     if sequence_start_index != sequence_stop_index:
         # the first slice of cube_slice will be cube_start_index and the length of

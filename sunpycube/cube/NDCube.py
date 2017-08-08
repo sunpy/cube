@@ -1,5 +1,7 @@
 from sunpy.visualization.imageanimator import ImageAnimatorWCS
 from collections import namedtuple
+from sunpycube.visualization import animation as ani
+from sunpycube.cube import cube_utils as cu
 import matplotlib.pyplot as plt
 import sunpy.visualization.wcsaxes_compat as wcsaxes_compat
 import astropy.units as u
@@ -9,9 +11,10 @@ import astropy.nddata
 import numpy as np
 import copy
 
-DimensionPair = namedtuple('DimensionPair', 'lengths axis_types')
+DimensionPair = namedtuple('DimensionPair', 'shape axis_types')
+SequenceDimensionPair = namedtuple('SequenceDimensionPair', 'shape axis_types')
 
-__all__ = ['NDCube']
+__all__ = ['NDCube', 'NDCubeSequence']
 
 
 class NDCube(astropy.nddata.NDData):
@@ -167,7 +170,7 @@ class NDCube(astropy.nddata.NDData):
     @property
     def dimensions(self):
         """
-        Returns a named tuple with two attributes: 'lengths' gives the lengths
+        Returns a named tuple with two attributes: 'shape' gives the shape
         of the data dimensions; 'axis_types' gives the WCS axis type of each dimension,
         e.g. WAVE or HPLT-TAN for wavelength of helioprojected latitude.
         """
@@ -177,7 +180,7 @@ class NDCube(astropy.nddata.NDData):
             if not axis:
                 axes_ctype.append(ctype[i])
         shape = u.Quantity(self.data.shape, unit=u.pix)
-        return DimensionPair(lengths=shape, axis_types=axes_ctype[::-1])
+        return DimensionPair(shape=shape, axis_types=axes_ctype[::-1])
 
     def plot(self, axes=None, image_axes=[-1, -2], unit_x_axis=None, unit_y_axis=None,
              axis_ranges=None, unit=None, origin=0, **kwargs):
@@ -254,6 +257,16 @@ class NDCube(astropy.nddata.NDData):
         result = NDCube(data, wcs=wcs, mask=mask, uncertainty=uncertainty,
                         meta=self.meta, unit=self.unit, copy=False, missing_axis=missing_axis)
         return result
+
+    def __repr__(self):
+        return (
+            """Sunpy NDCube
+---------------------
+{wcs}
+---------------------
+Length of NDCube: {lengthNDCube}
+Axis Types of NDCube: {axis_type}
+""".format(wcs=self.wcs.__repr__(), lengthNDCube=self.dimensions[0], axis_type=self.dimensions[1]))
 
 
 class NDCubeOrdered(NDCube):
@@ -401,3 +414,133 @@ def _plot_1D_cube(cube, unit=None, origin=0):
     plot = plt.plot(cube.pixel_to_world(
         [u.Quantity(np.arange(cube.data.shape[0]), unit=u.pix)], origin=origin)[0].to(unit), cube.data)
     return plot
+
+
+class NDCubeSequence(object):
+    """
+    Class representing list of cubes.
+
+    Attributes
+    ----------
+    data_list : `list`
+        List of cubes.
+
+    meta : `dict` or None
+        The header of the NDCubeSequence.
+
+    common_axis: `int` or None
+        The data axis which is common between the NDCubeSequence and the Cubes within.
+        For example, if the Cubes are sequenced in chronological order and time is
+        one of the zeroth axis of each Cube, then common_axis should be se to 0.
+        This enables the option for the NDCubeSequence to be indexed as though it is
+        one single Cube.
+    """
+
+    def __init__(self, data_list, meta=None, common_axis=None, **kwargs):
+        self.data = data_list
+        self.meta = meta
+        self.common_axis = common_axis
+        self.time = kwargs.get('time', None)
+
+    def __getitem__(self, item):
+        if item is None or (isinstance(item, tuple) and None in item):
+            raise IndexError("None indices not supported")
+        return cu.get_cube_from_sequence(self, item)
+
+    def plot(self, *args, **kwargs):
+        i = ani.ImageAnimatorNDCubeSequence(self, *args, **kwargs)
+        return i
+
+    def explode_along_axis(self, axis):
+        """
+        Separates slices of NDCubes in sequence along a given cube axis into (N-1)DCubes.
+
+        Parameters
+        ----------
+
+        axis : `int`
+            The axis along which the data is to be changed.
+        """
+        # if axis is None then set axis as common axis.
+        if self.common_axis is not None:
+            if self.common_axis != axis:
+                raise ValueError("axis and common_axis should be equal.")
+        # is axis is -ve then calculate the axis from the length of the dimensions of one cube
+        if axis < 0:
+            axis = len(self.dimensions.shape[1::]) + axis
+        # To store the resultant cube
+        result_cubes = []
+        # All slices are initially initialised as slice(None, None, None)
+        result_cubes_slice = [slice(None, None, None)] * len(self[0].data.shape)
+        # the range of the axis that needs to be sliced
+        range_of_axis = self[0].data.shape[axis]
+        for ndcube in self.data:
+            for index in range(range_of_axis):
+                # setting the slice value to the index so that the slices are done correctly.
+                result_cubes_slice[axis] = index
+                # appending the sliced cubes in the result_cube list
+                result_cubes.append(ndcube.__getitem__(tuple(result_cubes_slice)))
+        # creating a new sequence with the result_cubes keeping the meta and common axis as axis
+        return self._new_instance(result_cubes, meta=self.meta, common_axis=axis)
+
+    def __repr__(self):
+        return (
+            """Sunpy NDCubeSequence
+---------------------
+Length of NDCubeSequence:  {length}
+Length of 1st NDCube: {lengthNDCube}
+Axis Types of 1st NDCube: {axis_type}
+""".format(length=self.dimensions.shape[0], lengthNDCube=self.dimensions.shape[1::], axis_type=self.dimensions.axis_types[1::]))
+
+    @property
+    def dimensions(self):
+        return SequenceDimensionPair(shape=tuple([len(self.data)]+list(self.data[0].dimensions.shape)),
+                                     axis_types=tuple(["Sequence Axis"]+self.data[0].dimensions.axis_types))
+
+    @classmethod
+    def _new_instance(cls, data_list, meta=None, common_axis=None):
+        """
+        Instantiate a new instance of this class using given data.
+        """
+        return cls(data_list, meta=meta, common_axis=common_axis)
+
+    @property
+    def index_as_cube(self):
+        """
+        Method to slice the NDcubesequence instance as a single cube
+
+        Example
+        -------
+        >>> # Say we have three Cubes each cube has common_axis=0 is time and shape=(3,3,3)
+        >>> data_list = [cubeA, cubeB, cubeC]
+        >>> cs = NDCubeSequence(data_list, meta=None, common_axis=0)
+        >>> # return zeroth time slice of cubeB in via normal NDCubeSequence indexing.
+        >>> cs[1,:,0,:]
+        >>> # Return same slice using this function
+        >>> cs.index_sequence_as_cube[3:6, 0,   :]
+        """
+        if self.common_axis is None:
+            raise ValueError("common_axis cannot be None")
+        return _IndexAsCubeSlicer(self)
+
+
+class _IndexAsCubeSlicer(object):
+    """
+    Helper class to make slicing in index_as_cube more pythonic.
+    Helps to make operations like in numpy array.
+    >>> data_list = numpy.array(range(10))
+    >>> data_list[3:5]
+    >>> [4, 5, 6]
+    This makes slicing like this possible for index_as_cube.
+
+    Attributes
+    ----------
+    seq : `sunpycube.cube.NDCubeSequence`
+        Object of NDCubeSequence.
+    """
+
+    def __init__(self, seq):
+        self.seq = seq
+
+    def __getitem__(self, item):
+        return cu.index_sequence_as_cube(self.seq, item)
