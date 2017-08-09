@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 from sunpycube.cube.NDCube import NDCube, NDCubeSequence
 from sunpycube.cube import cube_utils as cu
 from sunpycube.wcs_util import WCS
@@ -106,6 +105,6 @@ def test_explode_along_axis(test_input, expected):
     assert test_input.dimensions.axis_types == expected.axis_types
 
 
-def test_explode_along_axis():
+def test_explode_along_axis_error():
     with pytest.raises(ValueError):
         seq.explode_along_axis(1)
