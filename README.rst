@@ -1,3 +1,5 @@
+# This project has been superseded by `NDCube <https://github.com/sunpy/ndcube>`__
+
 SunPy Spectral Cubes
 ====================
 
